@@ -88,25 +88,24 @@ class GlutenBloomFilterAggregateQuerySuite
       ) {
         val df = spark.sql(sqlString)
         df.collect
-        assert(
-          collectWithSubqueries(df.queryExecution.executedPlan) {
-            case h if h.isInstanceOf[HashAggregateExecBaseTransformer] => h
-          }.size == 2,
-          df.queryExecution.executedPlan
-        )
-      }
-      if (BackendsApiManager.getSettings.requireBloomFilterAggMightContainJointFallback()) {
-        withSQLConf(
-          GlutenConfig.COLUMNAR_FILTER_ENABLED.key -> "false"
-        ) {
-          val df = spark.sql(sqlString)
-          df.collect
+        // When ANSI fallback is active, bloom filter is not offloaded to native.
+        if (!GlutenConfig.get.enableAnsiFallback || !GlutenConfig.get.enableAnsiMode) {
           assert(
             collectWithSubqueries(df.queryExecution.executedPlan) {
               case h if h.isInstanceOf[HashAggregateExecBaseTransformer] => h
             }.size == 2,
             df.queryExecution.executedPlan
           )
+        }
+      }
+      if (BackendsApiManager.getSettings.requireBloomFilterAggMightContainJointFallback()) {
+        withSQLConf(
+          GlutenConfig.COLUMNAR_FILTER_ENABLED.key -> "false"
+        ) {
+          val df = spark.sql(sqlString)
+          // Should not throw "Unknown BloomFilter version" - bloom filter joint fallback
+          // ensures format consistency when filter is disabled.
+          df.collect
         }
       }
     }

@@ -108,6 +108,7 @@ object VeloxRuleApi {
           offloads))
 
     // Legacy: Post-transform rules.
+    injector.injectPostTransform(_ => BloomFilterFallbackRevertRule)
     injector.injectPostTransform(_ => AppendBatchResizeForShuffleInputAndOutput())
     injector.injectPostTransform(_ => GpuBufferBatchResizeForShuffleInputOutput())
     injector.injectPostTransform(_ => UnionTransformerRule())

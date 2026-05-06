@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.VeloxBloomFilterMightContain
 import org.apache.gluten.expression.aggregate.VeloxBloomFilterAggregate
@@ -31,7 +32,12 @@ case class BloomFilterMightContainJointRewriteRule(
     isBloomFilterStatFunction: Boolean)
   extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (isBloomFilterStatFunction || !GlutenConfig.get.enableNativeBloomFilter) {
+    if (
+      isBloomFilterStatFunction || !GlutenConfig.get.enableNativeBloomFilter ||
+      (GlutenConfig.get.enableAnsiMode && GlutenConfig.get.enableAnsiFallback) ||
+      (!GlutenConfig.get.enableColumnarFilter &&
+        BackendsApiManager.getSettings.requireBloomFilterAggMightContainJointFallback())
+    ) {
       return plan
     }
     val out = plan.transformWithSubqueries {
