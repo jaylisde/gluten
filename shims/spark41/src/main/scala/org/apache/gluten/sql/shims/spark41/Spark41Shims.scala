@@ -501,6 +501,16 @@ class Spark41Shims extends SparkShims {
     }
   }
 
+  /**
+   * Spark 4.1 (SPARK-53968) captures allowDecimalPrecisionLoss in NumericEvalContext at
+   * expression creation time (frozen). Gluten must use this frozen value so that views
+   * created before a SQLConf change continue to produce correct results after the change.
+   */
+  override def decimalOperationsAllowPrecisionLoss(e: Expression): Boolean = e match {
+    case b: BinaryArithmetic => b.evalContext.allowDecimalPrecisionLoss
+    case _ => super.decimalOperationsAllowPrecisionLoss(e)
+  }
+
   override def createParquetFilters(
       conf: SQLConf,
       schema: MessageType,

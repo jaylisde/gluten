@@ -698,7 +698,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSQLFunctionSuite]
   enableSuite[GlutenSQLJsonProtocolSuite]
   enableSuite[GlutenShufflePartitionsUtilSuite]
-  // TODO: 4.x enableSuite[GlutenSimpleSQLViewSuite]  // 2 failures
+  enableSuite[GlutenSimpleSQLViewSuite]
+    // Issue #11912: error condition mismatch (FAILED_READ_FILE.FILE_NOT_EXIST) - tracked separately
+    .exclude("alter temporary view should follow current storeAnalyzedPlanForView config")
   enableSuite[GlutenSparkPlanSuite]
     .exclude("SPARK-37779: ColumnarToRowExec should be canonicalizable after being (de)serialized")
   enableSuite[GlutenSparkPlannerSuite]

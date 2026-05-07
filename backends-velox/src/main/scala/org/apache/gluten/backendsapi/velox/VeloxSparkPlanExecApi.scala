@@ -162,9 +162,26 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi with Logging {
     }
   }
 
-  override def getDecimalArithmeticExprName(exprName: String): String =
-    if (!SQLConf.get.decimalOperationsAllowPrecisionLoss) { exprName + "_deny_precision_loss" }
-    else { exprName }
+  override def getDecimalArithmeticExprName(exprName: String): String = {
+    val allowPrecisionLoss = SQLConf.get.decimalOperationsAllowPrecisionLoss
+    if (!allowPrecisionLoss) exprName + "_deny_precision_loss" else exprName
+  }
+
+  /**
+   * Spark 4.1 (SPARK-53968) captures allowDecimalPrecisionLoss in NumericEvalContext at
+   * BinaryArithmetic creation time (frozen). When a user changes the SQLConf
+   * `decimal_operations.allow_precision_loss` after a view is created, reads of that view
+   * must still use the frozen value — otherwise the result is off by a factor of 10 for
+   * DECIMAL(38,18) + DECIMAL(38,18) (Gluten #11914).
+   *
+   * For Spark 4.1+, the shim reads the frozen value from the expression's NumericEvalContext.
+   * For older Spark versions, the shim falls back to reading the current SQLConf.
+   */
+  override def getDecimalArithmeticExprName(exprName: String, expr: Expression): String = {
+    val allowPrecisionLoss = SparkShimLoader.getSparkShims
+      .decimalOperationsAllowPrecisionLoss(expr)
+    if (!allowPrecisionLoss) exprName + "_deny_precision_loss" else exprName
+  }
 
   /** Transform map_entries to Substrait. */
   override def genMapEntriesTransformer(

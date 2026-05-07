@@ -266,6 +266,16 @@ trait SparkPlanExecApi {
 
   def getDecimalArithmeticExprName(exprName: String): String = exprName
 
+  /**
+   * Same as [[getDecimalArithmeticExprName(exprName: String)]] but also considers the
+   * expression's frozen NumericEvalContext (Spark 4.1+) via SparkShims, so that views
+   * created before a SQLConf change continue to produce correct results.
+   *
+   * Default falls back to the name-only variant for backward compatibility.
+   */
+  def getDecimalArithmeticExprName(exprName: String, expr: Expression): String =
+    getDecimalArithmeticExprName(exprName)
+
   /** Transform map_entries to Substrait. */
   def genMapEntriesTransformer(
       substraitExprName: String,

@@ -212,6 +212,18 @@ trait SparkShims {
 
   def withAnsiEvalMode(expr: Expression): Boolean = false
 
+  /**
+   * Returns the allowDecimalPrecisionLoss value to use for a given BinaryArithmetic expression.
+   *
+   * Prior to Spark 4.1, this is read from the current SQLConf.
+   * In Spark 4.1+ (SPARK-53968), each BinaryArithmetic carries a frozen NumericEvalContext
+   * captured at expression creation time. This shim override must return the frozen value,
+   * not the current SQLConf, otherwise views created before a SQLConf change will produce
+   * incorrect results when read after the change (Gluten issue #11914).
+   */
+  def decimalOperationsAllowPrecisionLoss(e: Expression): Boolean =
+    org.apache.spark.sql.internal.SQLConf.get.decimalOperationsAllowPrecisionLoss
+
   def isNullIntolerant(expr: Expression): Boolean
 
   def createParquetFilters(

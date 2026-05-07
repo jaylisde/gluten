@@ -20,7 +20,6 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions.{Add, BinaryArithmetic, Cast, Divide, Expression, Literal, Multiply, Pmod, PromotePrecision, Remainder, Subtract}
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{ByteType, Decimal, DecimalType, IntegerType, LongType, ShortType}
 import org.apache.spark.sql.utils.DecimalTypeUtil
 
@@ -33,7 +32,11 @@ object DecimalArithmeticUtil {
   // Returns the result decimal type of a decimal arithmetic computing.
   def getResultType(expr: BinaryArithmetic, type1: DecimalType, type2: DecimalType): DecimalType = {
 
-    val allowPrecisionLoss = SQLConf.get.decimalOperationsAllowPrecisionLoss
+    // For Spark 4.1 (SPARK-53968), allowPrecisionLoss is captured in the expression's frozen
+    // NumericEvalContext. Reading from the expression via SparkShims ensures views created
+    // before a SQLConf change continue to produce correct results (Gluten #11914).
+    val allowPrecisionLoss = SparkShimLoader.getSparkShims
+      .decimalOperationsAllowPrecisionLoss(expr)
     var resultScale = 0
     var resultPrecision = 0
     expr match {

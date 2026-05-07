@@ -631,7 +631,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             DecimalArithmeticUtil.isDecimalArithmetic(b) =>
         val arithmeticExprName =
           BackendsApiManager.getSparkPlanExecApiInstance.getDecimalArithmeticExprName(
-            getAndCheckSubstraitName(b, expressionsMap))
+            getAndCheckSubstraitName(b, expressionsMap),
+            b)
         val left =
           replaceWithExpressionTransformer0(b.left, attributeSeq, expressionsMap)
         val right =
@@ -648,7 +649,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         )
       case b: BinaryArithmetic if DecimalArithmeticUtil.isDecimalArithmetic(b) =>
         val exprName = BackendsApiManager.getSparkPlanExecApiInstance.getDecimalArithmeticExprName(
-          substraitExprName)
+          substraitExprName,
+          b)
         if (!BackendsApiManager.getSettings.transformCheckOverflow) {
           GenericExpressionTransformer(
             exprName,
