@@ -1,0 +1,29 @@
+diff --git a/velox/dwio/parquet/reader/ParquetReader.cpp b/velox/dwio/parquet/reader/ParquetReader.cpp
+index 54a7153dc..e181d30e2 100644
+--- a/velox/dwio/parquet/reader/ParquetReader.cpp
++++ b/velox/dwio/parquet/reader/ParquetReader.cpp
+@@ -447,6 +447,15 @@ std::unique_ptr<ParquetTypeWithId> ReaderBase::getParquetColumnInfo(
+                 requestedType->asArray().elementType());
+           }
+         }
++        // For repeated groups inside LIST (e.g., thrift value_tuple),
++        // use the ROW element type from parentRequestedType to distribute
++        // fields to children by name/index.
++        if (!requestedType && parentRequestedType &&
++            parentRequestedType->isArray() &&
++            parentRequestedType->asArray().elementType()->isRow()) {
++          requestedRowType = std::dynamic_pointer_cast<const velox::RowType>(
++              parentRequestedType->asArray().elementType());
++        }
+ 
+         if (requestedRowType) {
+           if (options_.useColumnNamesForColumnMapping()) {
+@@ -467,7 +476,7 @@ std::unique_ptr<ParquetTypeWithId> ReaderBase::getParquetColumnInfo(
+       }
+ 
+       // Handling elements of ARRAY/MAP
+-      if (!requestedType && parentRequestedType) {
++      if (!childRequestedType && !requestedType && parentRequestedType) {
+         if (parentRequestedType->isArray()) {
+           childRequestedType = parentRequestedType->asArray().elementType();
+         } else if (parentRequestedType->isMap()) {
