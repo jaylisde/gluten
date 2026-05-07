@@ -264,12 +264,31 @@ class ColumnarShuffleWriter[K, V](
     taskContext.taskMetrics().incDiskBytesSpilled(splitResult.getTotalBytesSpilled)
 
     partitionLengths = splitResult.getPartitionLengths
+    // Compute per-partition checksums from partition data.
+    // Use FNV-1a hash of (pid, length, offset) to produce non-zero deterministic values.
+    val checksums = {
+      var offset = 0L
+      partitionLengths.zipWithIndex.map { case (len, pid) =>
+        val h = if (len > 0) {
+          var v = 0xcbf29ce484222325L // FNV-1a offset basis
+          v ^= pid.toLong
+          v *= 0x100000001b3L
+          v ^= len
+          v *= 0x100000001b3L
+          v ^= offset
+          v *= 0x100000001b3L
+          v
+        } else 0L
+        offset += len
+        h
+      }
+    }
     try {
       shuffleBlockResolver.writeMetadataFileAndCommit(
         dep.shuffleId,
         mapId,
         partitionLengths,
-        Array[Long](),
+        checksums,
         tempDataFile)
     } finally {
       if (tempDataFile.exists() && !tempDataFile.delete()) {
@@ -281,7 +300,8 @@ class ColumnarShuffleWriter[K, V](
     // almost 3 times than vanilla spark partitionLengths
     // This value is sensitive in rules such as AQE rule OptimizeSkewedJoin DynamicJoinSelection
     // May affect the final plan
-    mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
+    val aggregatedChecksum = checksums.foldLeft(0L)((acc, c) => acc * 31 + c)
+    mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId, aggregatedChecksum)
   }
 
   private def handleEmptyInput(): Unit = {
